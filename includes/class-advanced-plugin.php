@@ -160,6 +160,8 @@ class Advanced_Plugin {
 
 		$this->loader->add_action('admin_menu',$plugin_admin,'advanced_menu_section');
 
+		$this->loader->add_action('wp_ajax_admin_ajax_request',$plugin_admin,'first_ajax_call');
+
 	}
 
 	/**

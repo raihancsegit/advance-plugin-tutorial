@@ -31,6 +31,7 @@ class Advanced_Plugin_Admin {
 	 */
 	private $plugin_name;
 
+
 	/**
 	 * The version of this plugin.
 	 *
@@ -39,6 +40,9 @@ class Advanced_Plugin_Admin {
 	 * @var      string    $version    The current version of this plugin.
 	 */
 	private $version;
+
+	
+	private $table_activator;
 
 	/**
 	 * Initialize the class and set its properties.
@@ -51,6 +55,12 @@ class Advanced_Plugin_Admin {
 
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
+
+
+		 require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-advanced-plugin-activator.php';
+
+		$activator = new Advanced_Plugin_Activator();
+		$this->table_activator = $activaor;
 
 	}
 
@@ -72,7 +82,7 @@ class Advanced_Plugin_Admin {
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-	   $valid_page = array('book-management','create-book','list-book');
+	   $valid_page = array('book-management','create-book','list-book','create-book-shelf','list-book-shelf');
 	   $page = isset($_REQUEST['page']) ? $_REQUEST['page'] : '';
 	   if(in_array($page,$valid_page)){
 	
@@ -107,11 +117,12 @@ class Advanced_Plugin_Admin {
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-		$valid_page = array('book-management','create-book','list-book');
+	   $valid_page = array('book-management','create-book','list-book','create-book-shelf','list-book-shelf');
+
 	   $page = isset($_REQUEST['page']) ? $_REQUEST['page'] : '';
 	   if(in_array($page,$valid_page)){
+
 		wp_enqueue_script("jquery");
-		//wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/advanced-plugin-admin.js', array( 'jquery' ), $this->version, false );
 
 		wp_enqueue_script( "bootstrap.js", ADVANCED_PLUGIN_BOOK_URL . 'assets/js/bootstrap.min.js', array( 'jquery' ), $this->version, false );
 
@@ -120,6 +131,13 @@ class Advanced_Plugin_Admin {
 		wp_enqueue_script( "jquery.validate.min.js", ADVANCED_PLUGIN_BOOK_URL . 'assets/js/jquery.validate.min.js', array( 'jquery' ), $this->version, false );
 
 		wp_enqueue_script( "sweetalert.js", ADVANCED_PLUGIN_BOOK_URL . 'assets/js/sweetalert.js', array( 'jquery' ), $this->version, false );
+
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/advanced-plugin-admin.js', array( 'jquery' ), $this->version, false );
+
+			wp_localize_script($this->plugin_name,"ad_book",array(
+				"ajaxurl" => admin_url("admin-ajax.php")
+			));
+
 	   }
 
 	}
@@ -141,6 +159,24 @@ class Advanced_Plugin_Admin {
 			"manage_options",
 			"book-management",
 			array($this,"book_managemnet_deshbord")
+		);
+
+		add_submenu_page(
+			"book-management",
+			"Create Book Shelf",
+			"Create Book Shelf",
+			"manage_options",
+			"create-book-shelf",
+			array($this,"callback_create_book_shelf")
+		);
+
+		add_submenu_page(
+			"book-management",
+			"List Book Shelf",
+			"List Book Shelf",
+			"manage_options",
+			"list-book-shelf",
+			array($this,"callback_list_book_shelf")
 		);
 
 		add_submenu_page(
@@ -189,12 +225,98 @@ class Advanced_Plugin_Admin {
 
 	}
 
+	public function callback_create_book_shelf(){
+		ob_start();
+
+		require_once plugin_dir_path( __FILE__ ) . 'partials/tepl-book-create-shelf.php';
+
+		$temaplte = ob_get_contents();
+
+		ob_end_clean();
+
+		echo $temaplte;		
+	}
+
+	public function callback_list_book_shelf(){
+		ob_start();
+
+		require_once plugin_dir_path( __FILE__ ) . 'partials/tepl-book-create-shelf-list.php';
+
+		$temaplte = ob_get_contents();
+
+		ob_end_clean();
+
+		echo $temaplte;
+	}
+
 	public function callback_create_book(){
-		echo "<h2>Create Book</h2>";
+		//echo "<h2>Create Book</h2>";
+		ob_start();
+
+		require_once plugin_dir_path( __FILE__ ) . 'partials/tepl-book-create.php';
+
+		$temaplte = ob_get_contents();
+
+		ob_end_clean();
+
+		echo $temaplte;
+
 	}
 
 	public function callback_list_book(){
-		echo "<h2>List Book</h2>";
+		ob_start();
+
+		require_once plugin_dir_path( __FILE__ ) . 'partials/tepl-book-create-list.php';
+
+		$temaplte = ob_get_contents();
+
+		ob_end_clean();
+
+		echo $temaplte;
+	}
+
+
+	public function first_ajax_call(){
+		global $wpdb;
+		$param = isset($_REQUEST['param']) ? $_REQUEST['param'] : '';
+		if(!empty($param)){
+			if($param == 'simple_first_ajax'){
+				echo json_encode(array(
+					"status"  => 1,
+					"message" => "first ajax Call",
+					"data"    => array(
+						"name"   => "Smart Coder",
+						"author" => "Raihan Islam"
+					)
+					));
+			}elseif($param == "create_book_shelf"){
+				//print_r($_REQUEST);
+				$name = isset($_REQUEST['txt_name']) ? $_REQUEST['txt_name'] : "";
+				$capacity = isset($_REQUEST['txt_capacity']) ? $_REQUEST['txt_capacity'] : "";
+				$location = isset($_REQUEST['txt_location']) ? $_REQUEST['txt_location'] : "";
+				$status = isset($_REQUEST['dd_status']) ? $_REQUEST['dd_status'] : "";
+
+				$wpdb->insert("wp_book_table_shelf",array(
+					"shelf_name" => $name,
+					"capacity" => $capacity,
+					"shelf_location" => $location,
+					"status" => $status
+				));
+
+				if($wpdb->insert_id > 0){
+					echo json_encode(array(
+						"status" => 1,
+						"message" => "Book Shelf created successfully"
+					));
+				}else{
+					echo json_encode(array(
+						"message" => "Failed to create book shelf",
+						"status" => 0
+					));
+				}
+
+			}
+		}
 	}
 
 }
